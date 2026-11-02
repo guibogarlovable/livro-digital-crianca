@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
     return json({
       session_token: sessionToken,
       access_token: authData.session?.access_token,
+      refresh_token: authData.session?.refresh_token,
       token_type: authData.session?.token_type,
       expires_in: authData.session?.expires_in,
     });
