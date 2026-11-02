@@ -1,0 +1,11 @@
+{
+  "name": "Pequenos Contos",
+  "short_name": "Contos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf7f0",
+  "theme_color": "#f0e4d5",
+  "lang": "pt-BR",
+  "description": "Histórias ilustradas para ler juntinhos.",
+  "icons": []
+}
