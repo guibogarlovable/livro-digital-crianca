@@ -29,9 +29,10 @@ Deno.serve(async (req) => {
 
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
-    if (!serviceKey || !supabaseUrl) {
-      throw new Error('Configuração do Supabase ausente.');
+    if (!serviceKey || !supabaseUrl || !resendApiKey) {
+      throw new Error('Configuração do Supabase ou Resend ausente.');
     }
 
     const db = createClient(supabaseUrl, serviceKey);
@@ -103,10 +104,37 @@ Deno.serve(async (req) => {
     const otp = link.properties?.email_otp;
     if (!otp) throw new Error('Não foi possível emitir o código OTP.');
 
-    // A sessão personalizada só será criada após a confirmação do OTP.
-    return json({ email_otp: otp });
+    const emailResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Pequenos Contos <onboarding@resend.dev>',
+        to: [normalized],
+        subject: 'Seu código de acesso — Pequenos Contos',
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:28px;color:#342f2b">
+            <h1 style="color:#765b48">Pequenos Contos</h1>
+            <p>Use o código abaixo para confirmar seu acesso à biblioteca:</p>
+            <p style="font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f7f1e9;text-align:center;border-radius:12px">${otp}</p>
+            <p>Esse código é de uso único e pode expirar. Se você não solicitou este acesso, ignore esta mensagem.</p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!emailResponse.ok) {
+      const detail = await emailResponse.text();
+      console.error('Resend rejeitou o envio:', detail);
+      throw new Error('Não foi possível enviar o e-mail de confirmação.');
+    }
+
+    // O OTP nunca é devolvido ao navegador. A sessão só nasce após a confirmação.
+    return json({ success: true, message: 'Código enviado para seu e-mail.' });
   } catch (error) {
     console.error('Falha no login do assinante:', error);
-    return json({ message: 'Não foi possível validar o acesso.' }, 500);
+    return json({ message: 'Não foi possível enviar o código de acesso.' }, 500);
   }
 });
